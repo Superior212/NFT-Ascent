@@ -24,13 +24,17 @@ sol! {
 
 // NFT Events
 sol! {
-    event NFTMinted(uint256 indexed tokenId, address indexed creator, string tokenURI);
+    event NFTMinted(uint256 indexed tokenId, uint256 indexed collectionId, address indexed creator, string tokenURI);
+    event CollectionCreated(uint256 indexed collectionId, address indexed creator, string name, string symbol);
 }
 
 // Error definitions
 sol! {
     error AlreadyInitialized();
     error InvalidTokenURI();
+    error InvalidCollectionName();
+    error InvalidCollectionId();
+    error NotCollectionCreator();
     error ERC721InvalidTokenId();
     error ERC721InvalidSender();
     error ERC721InvalidReceiver();
@@ -43,6 +47,9 @@ sol! {
 pub enum NFTError {
     AlreadyInitialized(AlreadyInitialized),
     InvalidTokenURI(InvalidTokenURI),
+    InvalidCollectionName(InvalidCollectionName),
+    InvalidCollectionId(InvalidCollectionId),
+    NotCollectionCreator(NotCollectionCreator),
     ERC721InvalidTokenId(ERC721InvalidTokenId),
     ERC721InvalidSender(ERC721InvalidSender),
     ERC721InvalidReceiver(ERC721InvalidReceiver),
@@ -51,58 +58,136 @@ pub enum NFTError {
     ERC721InvalidOperator(ERC721InvalidOperator),
 }
 
-// Main NFT contract
+// Main multi-collection NFT contract
 sol_storage! {
     #[entrypoint]
-    pub struct NeonNFT {
+    pub struct MultiCollectionNFT {
         // Contract initialization
         bool initialized;
 
-        // ERC721 Implementation
-        string name;                                    // "Neon NFT Collection"
-        string symbol;                                  // "NEON"
-        uint256 next_token_id;                          // Next token ID to mint
-        mapping(uint256 => address) owners;             // tokenId => owner
-        mapping(address => uint256) balances;           // owner => balance
-        mapping(uint256 => address) token_approvals;    // tokenId => approved address
+        // Platform info (for contract-level queries)
+        string platform_name;                          // "Neon Multi-Collection NFT"
+        string platform_symbol;                        // "NEON-MULTI"
+
+        // Collection management
+        uint256 next_collection_id;                    // Next collection ID
+        mapping(uint256 => string) collection_names;   // collectionId => name
+        mapping(uint256 => string) collection_symbols; // collectionId => symbol
+        mapping(uint256 => address) collection_creators; // collectionId => creator
+        mapping(uint256 => string) collection_base_uris; // collectionId => base_uri
+        mapping(uint256 => uint256) collection_next_token_ids; // collectionId => next_token_id
+        mapping(uint256 => bool) collection_exists;    // collectionId => exists
+
+        // Global token management
+        uint256 next_global_token_id;                  // Global token ID counter
+        mapping(uint256 => uint256) token_collections; // tokenId => collectionId
+        mapping(uint256 => address) owners;            // tokenId => owner
+        mapping(address => uint256) balances;          // owner => total balance across all collections
+        mapping(uint256 => address) token_approvals;   // tokenId => approved address
         mapping(address => mapping(address => bool)) operator_approvals; // owner => (operator => approved)
-        mapping(uint256 => string) token_uris;          // tokenId => metadata URI
+        mapping(uint256 => string) token_uris;         // tokenId => metadata URI
+
+        // Collection-specific balances
+        mapping(address => mapping(uint256 => uint256)) collection_balances; // owner => collectionId => balance
     }
 }
 
 #[public]
-impl NeonNFT {
+impl MultiCollectionNFT {
 
-    /// Initialize the NFT contract
+    /// Initialize the multi-collection NFT contract
     pub fn initialize(&mut self) -> Result<(), NFTError> {
         if self.initialized.get() {
             return Err(NFTError::AlreadyInitialized(AlreadyInitialized{}));
         }
 
         self.initialized.set(true);
-        self.name.set_str("Neon NFT Collection".to_string());
-        self.symbol.set_str("NEON".to_string());
-        self.next_token_id.set(U256::from(1));
+        self.platform_name.set_str("Neon Multi-Collection NFT".to_string());
+        self.platform_symbol.set_str("NEON-MULTI".to_string());
+        self.next_collection_id.set(U256::from(1));
+        self.next_global_token_id.set(U256::from(1));
 
         Ok(())
     }
 
-    /// Returns the name of the token collection
+    /// Returns the platform name
     pub fn name(&self) -> Result<String, NFTError> {
-        Ok(self.name.get_string())
+        Ok(self.platform_name.get_string())
     }
 
-    /// Returns the symbol of the token collection
+    /// Returns the platform symbol
     pub fn symbol(&self) -> Result<String, NFTError> {
-        Ok(self.symbol.get_string())
+        Ok(self.platform_symbol.get_string())
     }
 
-    /// Returns the number of tokens in owner's account
+    /// Create a new NFT collection
+    pub fn create_collection(
+        &mut self,
+        name: String,
+        symbol: String,
+        base_uri: String
+    ) -> Result<U256, NFTError> {
+        if !self.initialized.get() {
+            return Err(NFTError::AlreadyInitialized(AlreadyInitialized{})); // Reusing error for not initialized
+        }
+
+        if name.is_empty() || symbol.is_empty() {
+            return Err(NFTError::InvalidCollectionName(InvalidCollectionName{}));
+        }
+
+        let collection_id = self.next_collection_id.get();
+        let creator = self.vm().msg_sender();
+
+        // Store collection info
+        self.collection_names.setter(collection_id).set_str(name.clone());
+        self.collection_symbols.setter(collection_id).set_str(symbol.clone());
+        self.collection_creators.setter(collection_id).set(creator);
+        self.collection_base_uris.setter(collection_id).set_str(base_uri.clone());
+        self.collection_next_token_ids.setter(collection_id).set(U256::from(1));
+        self.collection_exists.setter(collection_id).set(true);
+        self.next_collection_id.set(collection_id + U256::from(1));
+
+        evm::log(CollectionCreated {
+            collectionId: collection_id,
+            creator,
+            name,
+            symbol,
+        });
+
+        Ok(collection_id)
+    }
+
+    /// Get collection information
+    pub fn get_collection(&self, collection_id: U256) -> Result<(String, String, Address, String, U256), NFTError> {
+        if !self.collection_exists.getter(collection_id).get() {
+            return Err(NFTError::InvalidCollectionId(InvalidCollectionId{}));
+        }
+        Ok((
+            self.collection_names.getter(collection_id).get_string(),
+            self.collection_symbols.getter(collection_id).get_string(),
+            self.collection_creators.getter(collection_id).get(),
+            self.collection_base_uris.getter(collection_id).get_string(),
+            self.collection_next_token_ids.getter(collection_id).get(),
+        ))
+    }
+
+    /// Returns the total number of tokens in owner's account across all collections
     pub fn balance_of(&self, owner: Address) -> Result<U256, NFTError> {
         if owner == Address::ZERO {
             return Err(NFTError::ERC721InvalidSender(ERC721InvalidSender{}));
         }
         Ok(self.balances.getter(owner).get())
+    }
+
+    /// Returns the number of tokens in owner's account for a specific collection
+    pub fn balance_of_collection(&self, owner: Address, collection_id: U256) -> Result<U256, NFTError> {
+        if owner == Address::ZERO {
+            return Err(NFTError::ERC721InvalidSender(ERC721InvalidSender{}));
+        }
+        if !self.collection_exists.getter(collection_id).get() {
+            return Err(NFTError::InvalidCollectionId(InvalidCollectionId{}));
+        }
+        Ok(self.collection_balances.getter(owner).getter(collection_id).get())
     }
 
     /// Returns the owner of the tokenId token
@@ -120,6 +205,14 @@ impl NeonNFT {
             return Err(NFTError::ERC721InvalidTokenId(ERC721InvalidTokenId{}));
         }
         Ok(self.token_uris.getter(token_id).get_string())
+    }
+
+    /// Returns the collection ID for a token
+    pub fn token_collection(&self, token_id: U256) -> Result<U256, NFTError> {
+        if !self._exists(token_id) {
+            return Err(NFTError::ERC721InvalidTokenId(ERC721InvalidTokenId{}));
+        }
+        Ok(self.token_collections.getter(token_id).get())
     }
 
     /// Returns if the token exists
@@ -209,15 +302,37 @@ impl NeonNFT {
             return Err(NFTError::ERC721InvalidReceiver(ERC721InvalidReceiver{}));
         }
 
+        // Verify ownership - CRITICAL FIX
+        let actual_owner = self.owner_of(token_id)?;
+        if from != actual_owner {
+            return Err(NFTError::ERC721InvalidSender(ERC721InvalidSender{}));
+        }
+
+        // Get collection ID for this token
+        let collection_id = self.token_collections.getter(token_id).get();
+
         // Clear approvals
         self._clear_approval(token_id);
 
-        // Update balances
+        // Update total balances with underflow protection - CRITICAL FIX
         let from_balance = self.balances.getter(from).get();
+        if from_balance == U256::ZERO {
+            return Err(NFTError::ERC721InvalidSender(ERC721InvalidSender{}));
+        }
         self.balances.setter(from).set(from_balance - U256::from(1));
 
         let to_balance = self.balances.getter(to).get();
         self.balances.setter(to).set(to_balance + U256::from(1));
+
+        // Update collection-specific balances with underflow protection - CRITICAL FIX
+        let from_collection_balance = self.collection_balances.getter(from).getter(collection_id).get();
+        if from_collection_balance == U256::ZERO {
+            return Err(NFTError::ERC721InvalidSender(ERC721InvalidSender{}));
+        }
+        self.collection_balances.setter(from).setter(collection_id).set(from_collection_balance - U256::from(1));
+
+        let to_collection_balance = self.collection_balances.getter(to).getter(collection_id).get();
+        self.collection_balances.setter(to).setter(collection_id).set(to_collection_balance + U256::from(1));
 
         // Update ownership
         self.owners.setter(token_id).set(to);
@@ -248,13 +363,27 @@ impl NeonNFT {
            self.is_approved_for_all(owner, spender)?)
     }
 
-    /// Mint a new NFT with metadata URI
-    pub fn mint_nft(&mut self, token_uri: String) -> Result<U256, NFTError> {
+    /// Mint a new NFT in a specific collection (only collection creator can mint)
+    pub fn mint_nft(&mut self, collection_id: U256, token_uri: String) -> Result<U256, NFTError> {
+        if !self.initialized.get() {
+            return Err(NFTError::AlreadyInitialized(AlreadyInitialized{})); // Reusing error for not initialized
+        }
+
         if token_uri.is_empty() {
             return Err(NFTError::InvalidTokenURI(InvalidTokenURI{}));
         }
 
-        let token_id = self.next_token_id.get();
+        if !self.collection_exists.getter(collection_id).get() {
+            return Err(NFTError::InvalidCollectionId(InvalidCollectionId{}));
+        }
+
+        // CRITICAL FIX: Only collection creator can mint
+        let collection_creator = self.collection_creators.getter(collection_id).get();
+        if self.vm().msg_sender() != collection_creator {
+            return Err(NFTError::NotCollectionCreator(NotCollectionCreator{}));
+        }
+
+        let token_id = self.next_global_token_id.get();
         let to = self.vm().msg_sender();
 
         if to == Address::ZERO {
@@ -264,13 +393,21 @@ impl NeonNFT {
         // Set token data
         self.token_uris.setter(token_id).set_str(token_uri.clone());
         self.owners.setter(token_id).set(to);
+        self.token_collections.setter(token_id).set(collection_id);
 
-        // Update balance
-        let balance = self.balances.getter(to).get();
-        self.balances.setter(to).set(balance + U256::from(1));
+        // Update balances
+        let total_balance = self.balances.getter(to).get();
+        self.balances.setter(to).set(total_balance + U256::from(1));
 
-        // Increment next token ID
-        self.next_token_id.set(token_id + U256::from(1));
+        let collection_balance = self.collection_balances.getter(to).getter(collection_id).get();
+        self.collection_balances.setter(to).setter(collection_id).set(collection_balance + U256::from(1));
+
+        // Update collection's next token ID
+        let current_next_token = self.collection_next_token_ids.getter(collection_id).get();
+        self.collection_next_token_ids.setter(collection_id).set(current_next_token + U256::from(1));
+
+        // Increment global token ID
+        self.next_global_token_id.set(token_id + U256::from(1));
 
         // Emit events
         evm::log(Transfer {
@@ -281,6 +418,7 @@ impl NeonNFT {
 
         evm::log(NFTMinted {
             tokenId: token_id,
+            collectionId: collection_id,
             creator: to,
             tokenURI: token_uri,
         });
@@ -288,9 +426,71 @@ impl NeonNFT {
         Ok(token_id)
     }
 
-    /// Get next token ID
+    /// Get next global token ID
     pub fn get_next_token_id(&self) -> Result<U256, NFTError> {
-        Ok(self.next_token_id.get())
+        Ok(self.next_global_token_id.get())
+    }
+
+    /// Get next collection ID
+    pub fn get_next_collection_id(&self) -> Result<U256, NFTError> {
+        Ok(self.next_collection_id.get())
+    }
+
+    /// Public mint function - allows anyone to mint in a collection (alternative to creator-only mint)
+    pub fn public_mint_nft(&mut self, collection_id: U256, token_uri: String) -> Result<U256, NFTError> {
+        if !self.initialized.get() {
+            return Err(NFTError::AlreadyInitialized(AlreadyInitialized{})); // Reusing error for not initialized
+        }
+
+        if token_uri.is_empty() {
+            return Err(NFTError::InvalidTokenURI(InvalidTokenURI{}));
+        }
+
+        if !self.collection_exists.getter(collection_id).get() {
+            return Err(NFTError::InvalidCollectionId(InvalidCollectionId{}));
+        }
+
+        let token_id = self.next_global_token_id.get();
+        let to = self.vm().msg_sender();
+
+        if to == Address::ZERO {
+            return Err(NFTError::ERC721InvalidReceiver(ERC721InvalidReceiver{}));
+        }
+
+        // Set token data
+        self.token_uris.setter(token_id).set_str(token_uri.clone());
+        self.owners.setter(token_id).set(to);
+        self.token_collections.setter(token_id).set(collection_id);
+
+        // Update balances
+        let total_balance = self.balances.getter(to).get();
+        self.balances.setter(to).set(total_balance + U256::from(1));
+
+        let collection_balance = self.collection_balances.getter(to).getter(collection_id).get();
+        self.collection_balances.setter(to).setter(collection_id).set(collection_balance + U256::from(1));
+
+        // Update collection's next token ID
+        let current_next_token = self.collection_next_token_ids.getter(collection_id).get();
+        self.collection_next_token_ids.setter(collection_id).set(current_next_token + U256::from(1));
+
+        // Increment global token ID
+        self.next_global_token_id.set(token_id + U256::from(1));
+
+        // Emit events
+        evm::log(Transfer {
+            from: Address::ZERO,
+            to: to,
+            tokenId: token_id,
+        });
+
+        evm::log(NFTMinted {
+            tokenId: token_id,
+            collectionId: collection_id,
+            creator: to,
+            tokenURI: token_uri,
+        });
+
+        Ok(token_id)
     }
 }
 

@@ -29,6 +29,15 @@ sol_interface! {
     }
 }
 
+// Multi-Collection NFT Interface (optional - for additional collection info)
+sol_interface! {
+    interface IMultiCollectionNFT {
+        function tokenCollection(uint256 tokenId) external view returns (uint256);
+        function getCollection(uint256 collectionId) external view returns (string memory, string memory, address, string memory, uint256);
+        function balanceOfCollection(address owner, uint256 collectionId) external view returns (uint256);
+    }
+}
+
 // Marketplace Events
 sol! {
     event AuctionCreated(uint256 indexed auctionId, address indexed nftContract, uint256 indexed tokenId, uint256 reservePrice, uint256 endTime);
@@ -120,14 +129,19 @@ const ONE_DAY: u64 = 86400; // 24 hours in seconds
 impl NeonMarketplace {
 
     /// Initialize the marketplace contract
-    pub fn initialize(&mut self) -> Result<(), MarketplaceError> {
+    pub fn initialize(&mut self, platform_fee_percentage: U256) -> Result<(), MarketplaceError> {
         if self.initialized.get() {
             return Err(MarketplaceError::AlreadyInitialized(AlreadyInitialized{}));
         }
 
+        // Validate fee percentage (max 10% = 1000 basis points)
+        if platform_fee_percentage > U256::from(1000) {
+            return Err(MarketplaceError::InvalidFeePercentage(InvalidFeePercentage{}));
+        }
+
         self.initialized.set(true);
         self.next_auction_id.set(U256::from(1));
-        self.platform_fee_percentage.set(U256::from(PLATFORM_FEE_BASIS_POINTS));
+        self.platform_fee_percentage.set(platform_fee_percentage);
         self.platform_owner.set(self.vm().msg_sender());
 
         Ok(())
@@ -469,5 +483,31 @@ impl NeonMarketplace {
     /// Get platform owner
     pub fn get_platform_owner(&self) -> Result<Address, MarketplaceError> {
         Ok(self.platform_owner.get())
+    }
+
+    /// Get collection information for a token (if using multi-collection NFT)
+    pub fn get_token_collection_info(&self, nft_contract: Address, token_id: U256) -> Result<(U256, String, String, Address), MarketplaceError> {
+        // Try to call the multi-collection NFT interface
+        let multi_nft = IMultiCollectionNFT::new(nft_contract);
+
+        match multi_nft.token_collection(Call::new(), token_id) {
+            Ok(collection_id) => {
+                match multi_nft.get_collection(Call::new(), collection_id) {
+                    Ok((name, symbol, creator, _base_uri, _next_token_id)) => {
+                        Ok((collection_id, name, symbol, creator))
+                    }
+                    Err(_) => Err(MarketplaceError::ERC721InvalidTokenId(ERC721InvalidTokenId{}))
+                }
+            }
+            Err(_) => {
+                // Not a multi-collection NFT, return default values
+                Ok((U256::ZERO, "Unknown Collection".to_string(), "UNK".to_string(), Address::ZERO))
+            }
+        }
+    }
+
+    /// Get platform fee percentage
+    pub fn get_platform_fee_percentage(&self) -> Result<U256, MarketplaceError> {
+        Ok(self.platform_fee_percentage.get())
     }
 }
