@@ -2,7 +2,7 @@
 export const CONTRACTS = {
   // Replace with your deployed contract addresses
   NFT_CONTRACT: "0x0000000000000000000000000000000000000000", // Your deployed NFT contract address
-  MARKETPLACE_CONTRACT: "0x0000000000000000000000000000000000000000", // Your deployed marketplace contract address
+  MARKETPLACE_CONTRACT: "0x135b3a004e7a746c43967226a8379f95fe9b4e23", // Your deployed marketplace contract address
 
   // Network configuration
   NETWORK: {
