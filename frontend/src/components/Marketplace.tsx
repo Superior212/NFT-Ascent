@@ -13,6 +13,7 @@ import { useWeb3 } from "@/hooks/useWeb3";
 import { AuctionCard } from "./AuctionCard";
 import { MintNFT } from "./MintNFT";
 import { CreateAuction } from "./CreateAuction";
+import { InitializeNFT } from "./InitializeNFT";
 import { RefreshCw, Store } from "lucide-react";
 
 export const Marketplace = () => {
@@ -25,7 +26,9 @@ export const Marketplace = () => {
   const loadAuctions = async () => {
     setLoading(true);
     try {
+      console.log("Loading active auctions...");
       const activeAuctions = await getActiveAuctions();
+      console.log("Found active auctions:", activeAuctions);
       setAuctions(activeAuctions);
     } catch (error) {
       console.error("Failed to load auctions:", error);
@@ -61,10 +64,11 @@ export const Marketplace = () => {
       </div>
 
       <Tabs defaultValue="marketplace" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="marketplace">Marketplace</TabsTrigger>
           <TabsTrigger value="mint">Mint NFT</TabsTrigger>
           <TabsTrigger value="create">Create Auction</TabsTrigger>
+          <TabsTrigger value="init">Initialize</TabsTrigger>
         </TabsList>
 
         <TabsContent value="marketplace" className="space-y-4">
@@ -113,6 +117,10 @@ export const Marketplace = () => {
 
         <TabsContent value="create">
           <CreateAuction />
+        </TabsContent>
+
+        <TabsContent value="init">
+          <InitializeNFT />
         </TabsContent>
       </Tabs>
     </div>

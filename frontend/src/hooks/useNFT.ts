@@ -10,7 +10,8 @@ interface NFTContract {
 
 export const useNFT = (
   provider: ethers.BrowserProvider | null,
-  signer: ethers.JsonRpcSigner | null
+  signer: ethers.JsonRpcSigner | null,
+  userAddress: string | null
 ) => {
   const [contracts, setContracts] = useState<NFTContract>({
     contract: null,
@@ -45,7 +46,11 @@ export const useNFT = (
     setError(null);
 
     try {
-      const tx = await contracts.contract.mintNft(tokenURI);
+      if (!userAddress) {
+        throw new Error("User address not available");
+      }
+
+      const tx = await contracts.contract.mint(userAddress, tokenURI);
       const receipt = await tx.wait();
 
       // Extract token ID from events
@@ -97,37 +102,129 @@ export const useNFT = (
   };
 
   const getTokenURI = async (tokenId: string) => {
-    if (!contracts.readOnlyContract) return null;
+    if (!contracts.readOnlyContract) {
+      console.log("No read-only contract available for getTokenURI");
+      return "URI not available";
+    }
 
     try {
-      return await contracts.readOnlyContract.tokenURI(tokenId);
+      console.log(`Getting token URI for token ${tokenId}...`);
+      const uri = await contracts.readOnlyContract.tokenURI(tokenId);
+      console.log(`Token ${tokenId} URI:`, uri);
+      return uri;
     } catch (error) {
-      console.error("Get token URI error:", error);
-      return null;
+      console.error(`Get token URI error for token ${tokenId}:`, error);
+      return "URI not available";
     }
   };
 
   const getOwnerNFTs = async (ownerAddress: string) => {
-    if (!contracts.readOnlyContract) return [];
+    if (!contracts.readOnlyContract) {
+      console.log("No read-only contract available");
+      return [];
+    }
 
     try {
-      await contracts.readOnlyContract.balanceOf(ownerAddress);
-      const nextTokenId = await contracts.readOnlyContract.getNextTokenId();
+      console.log("Getting NFTs for address:", ownerAddress);
+      const balance = await contracts.readOnlyContract.balanceOf(ownerAddress);
+      const balanceNum = Number(balance);
+      console.log("User balance:", balanceNum);
 
+      if (balanceNum === 0) {
+        console.log("User has no NFTs");
+        return [];
+      }
+
+      // Since we don't have next_token_id function, we'll search through a reasonable range
+      // Start with a smaller range and expand if needed
+      let maxSearch = 20; // Start with smaller range
+      console.log("Searching for NFTs in range 1 to", maxSearch);
+
+      // Search through the range
       const nfts = [];
-      for (let i = 1; i < Number(nextTokenId); i++) {
+      let foundCount = 0;
+
+      for (let i = 1; i <= maxSearch; i++) {
         try {
           const owner = await contracts.readOnlyContract!.ownerOf(i);
+          console.log(`Token ${i} owner:`, owner);
+
           if (owner.toLowerCase() === ownerAddress.toLowerCase()) {
-            const tokenURI = await contracts.readOnlyContract!.tokenURI(i);
-            nfts.push({ tokenId: i.toString(), tokenURI, owner });
+            try {
+              const tokenURI = await contracts.readOnlyContract!.tokenURI(i);
+              console.log(`Found NFT ${i} with URI:`, tokenURI);
+              nfts.push({ tokenId: i.toString(), tokenURI, owner });
+            } catch (uriError) {
+              console.log(`Found NFT ${i} but tokenURI failed:`, uriError);
+              // Still add the NFT even if URI fails
+              nfts.push({
+                tokenId: i.toString(),
+                tokenURI: "URI not available",
+                owner,
+              });
+            }
+            foundCount++;
+
+            // Stop if we found all the user's NFTs
+            if (foundCount >= balanceNum) {
+              console.log("Found all user's NFTs");
+              break;
+            }
           }
         } catch (e) {
           // Token doesn't exist or other error
+          console.log(`Token ${i} doesn't exist or error:`, e);
           continue;
         }
       }
 
+      // If we didn't find all NFTs, expand the search range
+      if (foundCount < balanceNum && maxSearch < 100) {
+        console.log(
+          `Found ${foundCount} of ${balanceNum} NFTs, expanding search...`
+        );
+        maxSearch = 100;
+
+        for (let i = 21; i <= maxSearch; i++) {
+          try {
+            const owner = await contracts.readOnlyContract!.ownerOf(i);
+            if (owner.toLowerCase() === ownerAddress.toLowerCase()) {
+              try {
+                const tokenURI = await contracts.readOnlyContract!.tokenURI(i);
+                console.log(`Found additional NFT ${i} with URI:`, tokenURI);
+                nfts.push({ tokenId: i.toString(), tokenURI, owner });
+              } catch (uriError) {
+                console.log(
+                  `Found additional NFT ${i} but tokenURI failed:`,
+                  uriError
+                );
+                // Still add the NFT even if URI fails
+                nfts.push({
+                  tokenId: i.toString(),
+                  tokenURI: "URI not available",
+                  owner,
+                });
+              }
+              foundCount++;
+
+              if (foundCount >= balanceNum) {
+                break;
+              }
+            }
+          } catch (e) {
+            continue;
+          }
+        }
+      }
+
+      // Final check
+      if (foundCount < balanceNum) {
+        console.warn(
+          `Expected ${balanceNum} NFTs but only found ${foundCount}`
+        );
+      }
+
+      console.log("Final NFTs found:", nfts);
       return nfts;
     } catch (error) {
       console.error("Get owner NFTs error:", error);
@@ -149,7 +246,28 @@ export const useNFT = (
     }
   };
 
+  const initializeNFT = async (name: string, symbol: string) => {
+    if (!contracts.contract) {
+      throw new Error("Contract not initialized");
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const tx = await contracts.contract.initialize(name, symbol);
+      await tx.wait();
+      return { success: true, txHash: tx.hash };
+    } catch (error: any) {
+      setError(error.message);
+      return { success: false, error: error.message };
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return {
+    initializeNFT,
     mintNFT,
     approveMarketplace,
     getTokenURI,

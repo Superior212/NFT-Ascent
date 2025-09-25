@@ -31,29 +31,45 @@ export const CreateAuction = () => {
     approveMarketplace,
     getApprovalStatus,
     loading: nftLoading,
-  } = useNFT(provider, signer);
+  } = useNFT(provider, signer, account);
   const { createAuction, loading: marketplaceLoading } = useMarketplace(
     provider,
     signer
   );
 
   useEffect(() => {
-    if (account) {
+    if (account && getOwnerNFTs) {
+      console.log("Account changed, loading NFTs...");
       loadUserNFTs();
     }
-  }, [account]);
+  }, [account, getOwnerNFTs]);
+
+  // Also load NFTs when component mounts if account is already available
+  useEffect(() => {
+    if (account && getOwnerNFTs && userNFTs.length === 0) {
+      console.log("Component mounted, loading NFTs...");
+      loadUserNFTs();
+    }
+  }, []);
 
   const loadUserNFTs = async () => {
-    if (!account) return;
+    if (!account) {
+      console.log("No account available");
+      return;
+    }
 
+    console.log("Loading NFTs for account:", account);
     const nfts = await getOwnerNFTs(account);
+    console.log("Retrieved NFTs:", nfts);
     setUserNFTs(nfts);
 
     // Check approval status for each NFT
     const approvals: Record<string, boolean> = {};
     for (const nft of nfts) {
+      console.log(`Checking approval status for token ${nft.tokenId}`);
       approvals[nft.tokenId] = await getApprovalStatus(nft.tokenId);
     }
+    console.log("Approval statuses:", approvals);
     setApprovalStatus(approvals);
   };
 
@@ -127,7 +143,12 @@ export const CreateAuction = () => {
           <div>
             <Label>Your NFTs</Label>
             <div className="grid grid-cols-1 gap-2 mt-2 max-h-40 overflow-y-auto">
-              {userNFTs.length === 0 ? (
+              {nftLoading ? (
+                <div className="flex items-center justify-center py-4">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                  <span className="ml-2 text-sm text-muted-foreground">Loading NFTs...</span>
+                </div>
+              ) : userNFTs.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No NFTs found</p>
               ) : (
                 userNFTs.map((nft) => (
@@ -143,7 +164,9 @@ export const CreateAuction = () => {
                       <div>
                         <p className="font-medium">Token #{nft.tokenId}</p>
                         <p className="text-sm text-muted-foreground truncate">
-                          {nft.tokenURI}
+                          {nft.tokenURI === "URI not available"
+                            ? "Metadata not available"
+                            : nft.tokenURI}
                         </p>
                       </div>
                       <div className="flex items-center gap-2">
@@ -174,14 +197,15 @@ export const CreateAuction = () => {
                 ))
               )}
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={loadUserNFTs}
-              disabled={nftLoading}
-              className="mt-2">
-              {nftLoading ? "Loading..." : "Refresh NFTs"}
-            </Button>
+            <div className="flex gap-2 mt-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={loadUserNFTs}
+                disabled={nftLoading}>
+                {nftLoading ? "Loading..." : "Refresh NFTs"}
+              </Button>
+            </div>
           </div>
 
           {selectedNFT && (

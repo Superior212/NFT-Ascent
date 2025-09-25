@@ -1,14 +1,15 @@
 // Contract addresses - Update these after deployment
 export const CONTRACTS = {
   // Replace with your deployed contract addresses
-  NFT_CONTRACT: "0x0000000000000000000000000000000000000000", // Your deployed NFT contract address
+  NFT_CONTRACT: "0xd3e20ae9c803da4c82dc4bae8a3e96ca0e4a4a84", // Your deployed NFT contract address
   MARKETPLACE_CONTRACT: "0x135b3a004e7a746c43967226a8379f95fe9b4e23", // Your deployed marketplace contract address
 
   // Network configuration
   NETWORK: {
     chainId: 421614, // Arbitrum Sepolia testnet
     name: "Arbitrum Sepolia",
-    rpcUrl: "https://sepolia-rollup.arbitrum.io/rpc",
+    rpcUrl:
+      "https://arb-sepolia.g.alchemy.com/v2/hOFsEmyHlw0Ez4aLryoLetL-YwfWJC2D",
     blockExplorer: "https://sepolia.arbiscan.io",
   },
 };
@@ -18,7 +19,10 @@ export const NFT_ABI = [
   {
     type: "function",
     name: "initialize",
-    inputs: [],
+    inputs: [
+      { name: "name", type: "string" },
+      { name: "symbol", type: "string" },
+    ],
     outputs: [],
     stateMutability: "nonpayable",
   },
@@ -96,17 +100,13 @@ export const NFT_ABI = [
   },
   {
     type: "function",
-    name: "mintNft",
-    inputs: [{ name: "tokenUri", type: "string" }],
+    name: "mint",
+    inputs: [
+      { name: "to", type: "address" },
+      { name: "tokenUri", type: "string" },
+    ],
     outputs: [{ name: "", type: "uint256" }],
     stateMutability: "nonpayable",
-  },
-  {
-    type: "function",
-    name: "getNextTokenId",
-    inputs: [],
-    outputs: [{ name: "", type: "uint256" }],
-    stateMutability: "view",
   },
   {
     type: "event",
@@ -122,7 +122,7 @@ export const NFT_ABI = [
     name: "NFTMinted",
     inputs: [
       { name: "tokenId", type: "uint256", indexed: true },
-      { name: "creator", type: "address", indexed: true },
+      { name: "to", type: "address", indexed: true },
       { name: "tokenURI", type: "string", indexed: false },
     ],
   },

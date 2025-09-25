@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -11,8 +11,9 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { useMarketplace } from "@/hooks/useMarketplace";
 import { useWeb3 } from "@/hooks/useWeb3";
+import { useNFT } from "@/hooks/useNFT";
 import { formatAddress, formatTime, isAuctionEnded } from "@/lib/utils";
-import { Clock, Gavel } from "lucide-react";
+import { Clock, Gavel, Image as ImageIcon } from "lucide-react";
 
 interface AuctionCardProps {
   auction: {
@@ -31,8 +32,31 @@ interface AuctionCardProps {
 
 export const AuctionCard = ({ auction, onUpdate }: AuctionCardProps) => {
   const [bidAmount, setBidAmount] = useState("");
+  const [nftMetadata, setNftMetadata] = useState<{
+    name?: string;
+    image?: string;
+    description?: string;
+  } | null>(null);
+  const [loadingMetadata, setLoadingMetadata] = useState(false);
+
   const { provider, signer, account } = useWeb3();
   const { placeBid, settleAuction, loading } = useMarketplace(provider, signer);
+  const { getTokenURI } = useNFT(provider, signer, account);
+
+  // Array of placeholder images
+  const placeholderImages = [
+    "https://picsum.photos/300/300?random=1",
+    "https://picsum.photos/300/300?random=2",
+    "https://picsum.photos/300/300?random=3",
+    "https://picsum.photos/300/300?random=4",
+    "https://picsum.photos/300/300?random=5",
+  ];
+
+  // Get a consistent random image based on token ID
+  const getPlaceholderImage = (tokenId: string) => {
+    const index = parseInt(tokenId) % placeholderImages.length;
+    return placeholderImages[index];
+  };
 
   const isEnded = isAuctionEnded(auction.endTime);
   const isOwner = account?.toLowerCase() === auction.seller.toLowerCase();
@@ -42,6 +66,75 @@ export const AuctionCard = ({ auction, onUpdate }: AuctionCardProps) => {
     Number(auction.currentBid) > 0
       ? (Number(auction.currentBid) * 1.05).toFixed(4)
       : auction.reservePrice;
+
+  // Fetch NFT metadata
+  useEffect(() => {
+    const fetchMetadata = async () => {
+      if (!getTokenURI) {
+        console.log(
+          `No getTokenURI function available for token ${auction.tokenId}`
+        );
+        return;
+      }
+
+      setLoadingMetadata(true);
+      try {
+        console.log(`Starting metadata fetch for token ${auction.tokenId}...`);
+        const tokenURI = await getTokenURI(auction.tokenId);
+        console.log(`Token ${auction.tokenId} - Raw URI:`, tokenURI);
+
+        if (!tokenURI) {
+          console.log(`Token ${auction.tokenId} - No URI returned`);
+          setNftMetadata(null);
+          return;
+        }
+
+        if (tokenURI === "URI not available") {
+          console.log(`Token ${auction.tokenId} - URI not available`);
+          setNftMetadata(null);
+          return;
+        }
+
+        // Handle IPFS URLs
+        const metadataUrl = tokenURI.startsWith("ipfs://")
+          ? `https://ipfs.io/ipfs/${tokenURI.slice(7)}`
+          : tokenURI;
+
+        console.log(
+          `Token ${auction.tokenId} - Fetching from URL:`,
+          metadataUrl
+        );
+
+        const response = await fetch(metadataUrl);
+        console.log(
+          `Token ${auction.tokenId} - Response status:`,
+          response.status
+        );
+
+        if (response.ok) {
+          const metadata = await response.json();
+          console.log(`Token ${auction.tokenId} - Metadata:`, metadata);
+          console.log(`Token ${auction.tokenId} - Image URL:`, metadata.image);
+          setNftMetadata(metadata);
+        } else {
+          console.log(
+            `Token ${auction.tokenId} - Failed to fetch metadata. Status: ${response.status}`
+          );
+          setNftMetadata(null);
+        }
+      } catch (error) {
+        console.error(
+          `Token ${auction.tokenId} - Error fetching metadata:`,
+          error
+        );
+        setNftMetadata(null);
+      } finally {
+        setLoadingMetadata(false);
+      }
+    };
+
+    fetchMetadata();
+  }, [auction.tokenId, getTokenURI]);
 
   const handleBid = async () => {
     if (!bidAmount || Number(bidAmount) <= Number(auction.currentBid)) {
@@ -73,7 +166,9 @@ export const AuctionCard = ({ auction, onUpdate }: AuctionCardProps) => {
     <Card className="w-full">
       <CardHeader>
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg">Token #{auction.tokenId}</CardTitle>
+          <CardTitle className="text-lg">
+            {nftMetadata?.name || `Neon NFT #${auction.tokenId}`}
+          </CardTitle>
           <Badge variant={isEnded ? "destructive" : "default"}>
             {isEnded ? "Ended" : "Active"}
           </Badge>
@@ -83,6 +178,78 @@ export const AuctionCard = ({ auction, onUpdate }: AuctionCardProps) => {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* NFT Image */}
+        <div className="w-full h-48 bg-muted rounded-lg flex items-center justify-center overflow-hidden relative">
+          {loadingMetadata ? (
+            <div className="flex flex-col items-center gap-2">
+              <ImageIcon className="h-8 w-8 animate-pulse" />
+              <p className="text-sm text-muted-foreground">Loading image...</p>
+            </div>
+          ) : nftMetadata?.image ? (
+            <img
+              src={
+                nftMetadata.image.startsWith("ipfs://")
+                  ? `https://ipfs.io/ipfs/${nftMetadata.image.slice(7)}`
+                  : nftMetadata.image
+              }
+              alt={nftMetadata.name || `Token #${auction.tokenId}`}
+              className="w-full h-full object-cover"
+              onLoad={() => {
+                console.log(
+                  `Token ${auction.tokenId} - Image loaded successfully`
+                );
+              }}
+              onError={(e) => {
+                console.log(
+                  `Token ${auction.tokenId} - Image failed to load:`,
+                  nftMetadata.image
+                );
+                console.log(
+                  `Token ${auction.tokenId} - Final image URL:`,
+                  e.currentTarget.src
+                );
+                e.currentTarget.style.display = "none";
+              }}
+            />
+          ) : (
+            <>
+              {/* Placeholder Image */}
+              <img
+                src={getPlaceholderImage(auction.tokenId)}
+                alt={`Neon NFT #${auction.tokenId}`}
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  console.log(
+                    `Placeholder image failed to load for token ${auction.tokenId}`
+                  );
+                  e.currentTarget.style.display = "none";
+                }}
+              />
+              {/* Overlay with token info */}
+              <div className="absolute inset-0 bg-black/20 flex items-end">
+                <div className="p-3 text-white">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
+                      <span className="text-sm font-bold">
+                        #{auction.tokenId}
+                      </span>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">Neon NFT</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* NFT Description */}
+        {nftMetadata?.description && (
+          <p className="text-sm text-muted-foreground line-clamp-2">
+            {nftMetadata.description}
+          </p>
+        )}
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div>
             <p className="text-muted-foreground">Reserve Price</p>

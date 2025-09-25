@@ -188,18 +188,26 @@ export const useMarketplace = (
   };
 
   const getActiveAuctions = async () => {
-    if (!contracts.readOnlyContract) return [];
+    if (!contracts.readOnlyContract) {
+      console.log("No read-only contract available for marketplace");
+      return [];
+    }
 
     try {
+      console.log("Getting next auction ID...");
       const nextAuctionId = await contracts.readOnlyContract.getNextAuctionId();
+      console.log("Next auction ID:", nextAuctionId.toString());
 
       const auctions = [];
       for (let i = 1; i < Number(nextAuctionId); i++) {
         try {
+          console.log(`Checking auction ${i}...`);
           const auction = await contracts.readOnlyContract!.getAuction(i);
           const isActive = await contracts.readOnlyContract!.isAuctionActive(i);
+          console.log(`Auction ${i} active:`, isActive);
 
           if (isActive) {
+            console.log(`Found active auction ${i}:`, auction);
             auctions.push({
               auctionId: i.toString(),
               nftContract: auction.nftContract,
@@ -213,11 +221,12 @@ export const useMarketplace = (
             });
           }
         } catch (e) {
-          // Auction doesn't exist or other error
+          console.log(`Auction ${i} doesn't exist or error:`, e);
           continue;
         }
       }
 
+      console.log("Total active auctions found:", auctions.length);
       return auctions;
     } catch (error) {
       console.error("Get active auctions error:", error);

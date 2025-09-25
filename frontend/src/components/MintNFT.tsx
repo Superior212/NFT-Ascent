@@ -16,7 +16,7 @@ import { ImageIcon } from "lucide-react";
 export const MintNFT = () => {
   const [tokenURI, setTokenURI] = useState("");
   const { provider, signer, account } = useWeb3();
-  const { mintNFT, loading, error } = useNFT(provider, signer);
+  const { mintNFT, loading, error } = useNFT(provider, signer, account);
 
   const handleMint = async () => {
     if (!tokenURI.trim()) {
