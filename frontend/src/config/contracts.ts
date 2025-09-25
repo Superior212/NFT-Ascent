@@ -8,8 +8,7 @@ export const CONTRACTS = {
   NETWORK: {
     chainId: 421614, // Arbitrum Sepolia testnet
     name: "Arbitrum Sepolia",
-    rpcUrl:
-      "https://arb-sepolia.g.alchemy.com/v2/hOFsEmyHlw0Ez4aLryoLetL-YwfWJC2D",
+    rpcUrl: "https://sepolia-rollup.arbitrum.io/rpc", // More reliable public RPC
     blockExplorer: "https://sepolia.arbiscan.io",
   },
 };
