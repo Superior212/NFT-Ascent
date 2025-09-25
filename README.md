@@ -245,9 +245,9 @@ This project was developed by:
 
 ### Core Contributors
 
-- **Samson**
-- **Olumide**
-- **James**
+- **Samson Aderonmu**
+- **Alfred Olumide Adenigba**
+- **Osunkiyesi James Olasunkanmi**
 
 ## 📞 Support & Links
 
