@@ -1,0 +1,159 @@
+[
+  {
+    "type": "function",
+    "name": "initialize",
+    "inputs": [],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "createAuction",
+    "inputs": [
+      { "name": "nftContract", "type": "address" },
+      { "name": "tokenId", "type": "uint256" },
+      { "name": "reservePrice", "type": "uint256" },
+      { "name": "duration", "type": "uint256" }
+    ],
+    "outputs": [{ "name": "", "type": "uint256" }],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "cancelAuction",
+    "inputs": [{ "name": "auctionId", "type": "uint256" }],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "placeBid",
+    "inputs": [{ "name": "auctionId", "type": "uint256" }],
+    "outputs": [],
+    "stateMutability": "payable"
+  },
+  {
+    "type": "function",
+    "name": "settleAuction",
+    "inputs": [{ "name": "auctionId", "type": "uint256" }],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "updatePlatformFee",
+    "inputs": [{ "name": "newFeePercentage", "type": "uint256" }],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "withdraw",
+    "inputs": [],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "getAuction",
+    "inputs": [{ "name": "auctionId", "type": "uint256" }],
+    "outputs": [
+      { "name": "nftContract", "type": "address" },
+      { "name": "tokenId", "type": "uint256" },
+      { "name": "seller", "type": "address" },
+      { "name": "reservePrice", "type": "uint256" },
+      { "name": "currentBid", "type": "uint256" },
+      { "name": "currentBidder", "type": "address" },
+      { "name": "endTime", "type": "uint256" },
+      { "name": "settled", "type": "bool" }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "isAuctionActive",
+    "inputs": [{ "name": "auctionId", "type": "uint256" }],
+    "outputs": [{ "name": "", "type": "bool" }],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getBalance",
+    "inputs": [{ "name": "userAddress", "type": "address" }],
+    "outputs": [{ "name": "", "type": "uint256" }],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getNextAuctionId",
+    "inputs": [],
+    "outputs": [{ "name": "", "type": "uint256" }],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getPlatformFee",
+    "inputs": [],
+    "outputs": [{ "name": "", "type": "uint256" }],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getPlatformOwner",
+    "inputs": [],
+    "outputs": [{ "name": "", "type": "address" }],
+    "stateMutability": "view"
+  },
+  {
+    "type": "event",
+    "name": "AuctionCreated",
+    "inputs": [
+      { "name": "auctionId", "type": "uint256", "indexed": true },
+      { "name": "nftContract", "type": "address", "indexed": true },
+      { "name": "tokenId", "type": "uint256", "indexed": true },
+      { "name": "reservePrice", "type": "uint256", "indexed": false },
+      { "name": "endTime", "type": "uint256", "indexed": false }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "BidPlaced",
+    "inputs": [
+      { "name": "auctionId", "type": "uint256", "indexed": true },
+      { "name": "bidder", "type": "address", "indexed": true },
+      { "name": "amount", "type": "uint256", "indexed": false }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "AuctionSettled",
+    "inputs": [
+      { "name": "auctionId", "type": "uint256", "indexed": true },
+      { "name": "winner", "type": "address", "indexed": true },
+      { "name": "amount", "type": "uint256", "indexed": false }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "AuctionCanceled",
+    "inputs": [
+      { "name": "auctionId", "type": "uint256", "indexed": true },
+      { "name": "seller", "type": "address", "indexed": true }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "PlatformFeeUpdated",
+    "inputs": [
+      { "name": "newFeePercentage", "type": "uint256", "indexed": false }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "FundsWithdrawn",
+    "inputs": [
+      { "name": "user", "type": "address", "indexed": true },
+      { "name": "amount", "type": "uint256", "indexed": false }
+    ]
+  }
+]
