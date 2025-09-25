@@ -1,319 +1,243 @@
-# Neon NFT Marketplace
+# Neon NFT Ecosystem
 
-A complete NFT marketplace built with **Rust** and **Arbitrum Stylus** for ultra-fast, low-cost NFT trading. Features NFT minting, English auctions, automatic bidding, and platform fee management.
+A complete NFT ecosystem built with **Rust** and **Arbitrum Stylus** featuring both NFT contracts and a decentralized marketplace for ultra-fast, low-cost NFT trading.
 
-## 🚀 Features
+## 🚀 Deployed Contracts
 
-- **🎨 NFT Minting** - Create NFTs with IPFS metadata URIs
-- **🏆 English Auctions** - List NFTs for auction with reserve prices
-- **💰 Automatic Bidding** - Place bids with automatic refunds for outbid users
-- **💸 Platform Fees** - 5% platform fee on successful sales
-- **🔒 Security** - Reentrancy protection and input validation
-- **📊 Full Tracking** - Complete auction and ownership management
+**Arbitrum Sepolia Testnet:**
+- **NFT Contract**: `0xd3e20ae9c803da4c82dc4bae8a3e96ca0e4a4a84`
+- **Marketplace Contract**: `0x135b3a004e7a746c43967226a8379f95fe9b4e23`
+- **Network**: Arbitrum Sepolia (Chain ID: 421614)
 
-## ⚡ Why Stylus?
+## 📂 Project Structure
 
-- **10x Cheaper Gas** - Significantly lower transaction costs than EVM
-- **Faster Execution** - WebAssembly performance optimization
-- **Full EVM Compatibility** - Works with existing Ethereum tools
-- **Rust Safety** - Memory-safe smart contracts with compile-time guarantees
+This repository contains two main components:
 
-## 🛠️ Prerequisites
+### 1. [**neon-nft**](./neon-nft) - Simple NFT Contract
+- **Size**: 23.8 KiB (optimized for Stylus deployment)
+- **Type**: Single collection NFT contract
+- **Features**: ERC721 compliant, secure minting, optimized gas usage
 
-Before you begin, make sure you have:
+### 2. [**neon-marketplace**](./neon-marketplace) - NFT Marketplace
+- **Size**: 21.6 KiB (optimized for Stylus deployment)
+- **Type**: English auction marketplace
+- **Features**: Universal ERC721 support, platform fees, automated settlement
 
-- [Rust](https://rustup.rs/) (v1.87 or newer)
-- [Docker](https://www.docker.com/products/docker-desktop/) (for compilation)
-- [Stylus CLI](https://github.com/OffchainLabs/cargo-stylus)
+## 🎯 Key Features
 
-## 📦 Installation
+### NFT Contract (`neon-nft`)
+- **✅ ERC721 Compliant**: Full compatibility with existing NFT infrastructure
+- **🔒 Secure**: Comprehensive security measures and error handling
+- **⚡ Optimized**: Contract size under 24KB for efficient Stylus deployment
+- **💰 Gas Efficient**: Built on Arbitrum Stylus for ultra-low costs
 
-### 1. Install Rust
-```bash
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-source ~/.cargo/env
-```
-
-### 2. Install Stylus CLI
-```bash
-cargo install --force cargo-stylus
-```
-
-### 3. Clone and Setup
-```bash
-git clone https://github.com/alfredadenigba/neon-marketplace
-cd neon-marketplace
-```
+### Marketplace Contract (`neon-marketplace`)
+- **🏆 English Auctions**: Time-based bidding with automatic settlement
+- **🌐 Universal Support**: Works with any ERC721-compatible NFT
+- **💸 Platform Fees**: Configurable fees (currently 5%)
+- **🔐 Security**: Reentrancy protection and comprehensive validation
 
 ## 🚀 Quick Start
 
-### Build and Check
+### Prerequisites
 ```bash
-# Verify the contract compiles
+# Install Rust
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+
+# Install Stylus CLI
+cargo install --force cargo-stylus cargo-stylus-check
+rustup target add wasm32-unknown-unknown
+```
+
+### Build Both Contracts
+```bash
+# Build NFT contract
+cd neon-nft
 cargo stylus check
 
-# Export Solidity ABI for frontend integration
-cargo stylus export-abi
+# Build marketplace contract
+cd ../neon-marketplace
+cargo stylus check
 ```
 
-### Deploy to Stylus Testnet
+### Deploy Contracts
 ```bash
-cargo stylus deploy \
-  --endpoint https://stylus-testnet.arbitrum.io/rpc \
-  --private-key YOUR_PRIVATE_KEY
+# Deploy NFT contract
+cd neon-nft
+cargo stylus deploy --private-key-path=<KEY_FILE> --endpoint=https://sepolia-rollup.arbitrum.io/rpc
+
+# Deploy marketplace contract
+cd ../neon-marketplace
+cargo stylus deploy --private-key-path=<KEY_FILE> --endpoint=https://sepolia-rollup.arbitrum.io/rpc
 ```
 
-### Deploy to Local Testnet
+## 📖 Usage Examples
+
+### 1. Initialize NFT Contract
 ```bash
-# Start local test node (in another terminal)
-git clone https://github.com/OffchainLabs/nitro-testnode.git
-cd nitro-testnode && ./test-node.bash --init --detach
-
-# Deploy locally
-cargo stylus deploy \
-  --endpoint http://localhost:8547 \
-  --private-key 0xb6b15c8cb491557369f3c7d2c287b053eb229daa9c22138887752191c9520659
+cast send 0xd3e20ae9c803da4c82dc4bae8a3e96ca0e4a4a84 \
+  "initialize(string,string)" "My NFT Collection" "MNC" \
+  --private-key <KEY> --rpc-url https://sepolia-rollup.arbitrum.io/rpc
 ```
 
-## 📖 Usage Guide
-
-### Initialize Marketplace
-```rust
-// Call once after deployment
-initialize()
+### 2. Initialize Marketplace Contract
+```bash
+cast send 0x135b3a004e7a746c43967226a8379f95fe9b4e23 \
+  "initialize(uint256)" 500 \
+  --private-key <KEY> --rpc-url https://sepolia-rollup.arbitrum.io/rpc
 ```
 
-### Mint an NFT
-```rust
-// Mint with metadata URI
-mint_nft("ipfs://QmYourMetadataHash")
-// Returns: token_id
+### 3. Mint NFT
+```bash
+cast send 0xd3e20ae9c803da4c82dc4bae8a3e96ca0e4a4a84 \
+  "mint(address,string)" <TO_ADDRESS> "ipfs://QmYourMetadataHash" \
+  --private-key <KEY> --rpc-url https://sepolia-rollup.arbitrum.io/rpc
 ```
 
-### Create Auction
-```rust
-// List NFT for auction
-create_auction(
-    token_id: 1,
-    reserve_price: 1000000000000000000, // 1 ETH in wei
-    duration: 86400                     // 24 hours in seconds
-)
-// Returns: auction_id
+### 4. Create Auction on Marketplace
+```bash
+# First approve marketplace to transfer NFT
+cast send 0xd3e20ae9c803da4c82dc4bae8a3e96ca0e4a4a84 \
+  "approve(address,uint256)" 0x135b3a004e7a746c43967226a8379f95fe9b4e23 <TOKEN_ID> \
+  --private-key <KEY> --rpc-url https://sepolia-rollup.arbitrum.io/rpc
+
+# Create auction
+cast send 0x135b3a004e7a746c43967226a8379f95fe9b4e23 \
+  "createAuction(address,uint256,uint256,uint256)" \
+  0xd3e20ae9c803da4c82dc4bae8a3e96ca0e4a4a84 <TOKEN_ID> 100000000000000000 86400 \
+  --private-key <KEY> --rpc-url https://sepolia-rollup.arbitrum.io/rpc
 ```
 
-### Place Bid
-```rust
-// Bid on auction (send ETH with transaction)
-place_bid(auction_id: 1)
-```
+## 🔍 Complete User Flow
 
-### Settle Auction
-```rust
-// Anyone can settle after auction ends
-settle_auction(auction_id: 1)
-```
+### NFT Creator Journey
+1. **Deploy** or use existing NFT contract
+2. **Initialize** contract with collection name and symbol
+3. **Mint NFTs** with IPFS metadata URIs
+4. **Approve marketplace** to transfer NFTs
+5. **Create auctions** with reserve prices and durations
+6. **Settle auctions** after they end
+7. **Withdraw earnings** (minus platform fees)
 
-### Withdraw Funds
-```rust
-// Withdraw your earnings or refunded bids
-withdraw()
-```
+### NFT Buyer Journey
+1. **Browse** active auctions on marketplace
+2. **Place bids** (must exceed reserve price and current bid)
+3. **Monitor** auction until it ends
+4. **Receive NFT** if winning bid
+5. **Get refunds** for outbid amounts
 
-## 🔍 View Functions
+## ⚡ Why Stylus?
 
-### Get Auction Details
-```rust
-get_auction(auction_id: 1)
-// Returns: (seller, token_id, reserve_price, current_bid, current_bidder, end_time, settled)
-```
+- **🚀 10x Cheaper Gas**: Significantly lower costs than EVM contracts
+- **⚡ Faster Execution**: WebAssembly performance optimization
+- **🔧 EVM Compatible**: Works with existing Ethereum tools and infrastructure
+- **🛡️ Rust Safety**: Memory-safe contracts with compile-time guarantees
+- **📏 Smaller Size**: More efficient bytecode for complex logic
 
-### Check if Auction is Active
-```rust
-is_auction_active(auction_id: 1)
-// Returns: bool
-```
+## 📊 Performance Metrics
 
-### Get User Balance
-```rust
-get_balance(user_address)
-// Returns: withdrawable_amount
-```
-
-### Get Contract State
-```rust
-get_next_ids()
-// Returns: (next_token_id, next_auction_id)
-```
-
-### NFT Information
-```rust
-owner_of(token_id)
-// Returns: owner_address
-
-token_uri(token_id)
-// Returns: metadata_uri
-
-balance_of(owner_address)
-// Returns: nft_count
-```
-
-## �� Fee Structure
-
-- **Platform Fee**: 5% on successful auction sales
-- **Gas Costs**: ~90% cheaper than equivalent Solidity contracts
-- **No Minting Fees**: Free NFT creation
-- **No Listing Fees**: Free auction creation
+| Contract | Size | WASM Size | Gas Savings |
+|----------|------|-----------|-------------|
+| neon-nft | 23.8 KiB | 86.5 KiB | ~90% vs Solidity |
+| neon-marketplace | 21.6 KiB | 81.6 KiB | ~90% vs Solidity |
 
 ## 🔐 Security Features
 
-- **Automatic Refunds**: Previous bidders get refunded automatically
-- **Reentrancy Protection**: Safe withdrawal patterns
-- **Input Validation**: Comprehensive parameter checking
-- **Ownership Verification**: Proper token ownership checks
-- **Platform Fee Protection**: Secure fee collection and distribution
+### NFT Contract
+- ✅ Integer underflow protection
+- ✅ Ownership verification on transfers
+- ✅ Proper initialization checks
+- ✅ Comprehensive input validation
 
-## 🌐 Frontend Integration
+### Marketplace Contract
+- ✅ Reentrancy protection
+- ✅ Automatic bid refunds
+- ✅ Secure fund management
+- ✅ Platform fee protection
 
-### Generate ABI
-```bash
-cargo stylus export-abi > marketplace-abi.json
+## 🌐 Integration
+
+Both contracts are fully compatible with:
+- **Wallets**: MetaMask, WalletConnect, etc.
+- **Explorers**: Arbiscan, Etherscan-compatible
+- **NFT Platforms**: OpenSea, LooksRare (via ERC721 compliance)
+- **DeFi**: Any protocol supporting ERC721 tokens
+
+## 📄 Contract Interfaces
+
+### NFT Contract (ISimpleNFT)
+```solidity
+function initialize(string memory name, string memory symbol) external;
+function mint(address to, string memory tokenURI) external returns (uint256);
+function ownerOf(uint256 tokenId) external view returns (address);
+function tokenURI(uint256 tokenId) external view returns (string memory);
+function balanceOf(address owner) external view returns (uint256);
 ```
 
-### Contract Address
-After deployment, your contract will have a unique address on the Stylus network.
-
-## 📊 Contract Events
-
-The contract emits the following events for easy indexing:
-
-- `NFTMinted(tokenId, creator, tokenURI)`
-- `AuctionCreated(auctionId, tokenId, reservePrice, endTime)`  
-- `BidPlaced(auctionId, bidder, amount)`
-- `AuctionSettled(auctionId, winner, amount)`
-- `FundsWithdrawn(user, amount)`
-
-## 🔄 Complete User Flow
-
-### NFT Creator Journey
-1. **Initialize** marketplace (one-time setup)
-2. **Mint NFT** with IPFS metadata
-3. **Create auction** with reserve price and duration
-4. **Monitor** auction progress
-5. **Settle** auction after it ends
-6. **Withdraw** earnings (minus 5% platform fee)
-
-### NFT Buyer Journey
-1. **Browse** active auctions
-2. **Place bid** (must meet reserve price)
-3. **Get outbid** → withdraw refund
-4. **Win auction** → receive NFT
-5. **Withdraw** any refunded bids
-
-### Platform Owner Journey
-1. **Deploy** and initialize marketplace
-2. **Collect** 5% platform fees automatically
-3. **Withdraw** accumulated platform earnings
-
-## 🚨 Current Limitations
-
-This is a **simplified** marketplace focused on core functionality:
-
-- No collection system
-- No royalty payments
-- No admin controls or pausing
-- No auction cancellation
-- Fixed 5% platform fee
-- No batch operations
-
-## 🔮 Future Enhancements
-
-Potential features for v2:
-- Collection support and management
-- Creator royalties and secondary sales
-- Dutch auctions and fixed-price sales
-- Admin governance and emergency controls
-- Batch minting and auction creation
-- Advanced bidding strategies
-- Integration with external NFT standards
-
-## 🏗️ Development
-
-### Project Structure
+### Marketplace Contract (INeonMarketplace)
+```solidity
+function initialize(uint256 platform_fee_percentage) external;
+function createAuction(address nft_contract, uint256 token_id, uint256 reserve_price, uint256 duration) external returns (uint256);
+function placeBid(uint256 auction_id) external payable;
+function settleAuction(uint256 auction_id) external;
+function withdraw() external;
 ```
-neon-marketplace/
-├── Cargo.toml              # Rust project configuration
-├── src/
-│   └── lib.rs              # Main marketplace implementation
-├── rust-toolchain.toml     # Rust version specification
-└── README.md               # This file
-```
+
+## 🛠️ Development
 
 ### Testing
 ```bash
-# Run Rust tests
-cargo test
-
-# Test contract compilation
-cargo stylus check
-
-# Check contract size
-cargo stylus check --release
+# Test both contracts
+cd neon-nft && cargo test
+cd ../neon-marketplace && cargo test
 ```
 
-### Local Development
+### Generate ABIs
 ```bash
-# Watch for changes and recompile
-cargo watch -x "stylus check"
+# Generate NFT ABI
+cd neon-nft && cargo stylus export-abi > nft_abi.sol
 
-# Build for release
-cargo stylus build --release
+# Generate Marketplace ABI
+cd neon-marketplace && cargo stylus export-abi > marketplace_abi.sol
 ```
 
-## 📈 Performance Metrics
+## 📈 Roadmap
 
-- **Contract Size**: 21.6 KiB (optimized for Stylus)
-- **WASM Size**: 81.6 KiB
-- **Gas Efficiency**: ~90% cheaper than Solidity equivalent
-- **Compilation Time**: ~2-3 seconds
-- **Deployment**: Single transaction
+### Phase 1 ✅ (Current)
+- [x] Basic NFT contract with ERC721 compliance
+- [x] English auction marketplace
+- [x] Security audits and optimizations
+- [x] Testnet deployment
+
+### Phase 2 🚧 (In Progress)
+- [ ] Multi-collection NFT support
+- [ ] Creator royalties system
+- [ ] Advanced auction types (Dutch, sealed-bid)
+- [ ] Batch operations
+
+### Phase 3 📋 (Planned)
+- [ ] NFT staking and rewards
+- [ ] Cross-chain compatibility
+- [ ] Advanced marketplace features
+- [ ] DAO governance integration
 
 ## 🤝 Contributing
 
 1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Make your changes
-4. Test thoroughly with `cargo stylus check`
-5. Commit your changes (`git commit -m 'Add amazing feature'`)
-6. Push to the branch (`git push origin feature/amazing-feature`)
-7. Open a Pull Request
+2. Choose a component (`neon-nft` or `neon-marketplace`)
+3. Create a feature branch
+4. Implement changes with tests
+5. Ensure `cargo stylus check` passes
+6. Submit a pull request
+
+## 📞 Support & Links
+
+- **NFT Explorer**: https://sepolia.arbiscan.io/address/0xd3e20ae9c803da4c82dc4bae8a3e96ca0e4a4a84
+- **Marketplace Explorer**: https://sepolia.arbiscan.io/address/0x135b3a004e7a746c43967226a8379f95fe9b4e23
+- **Arbitrum Stylus Docs**: https://docs.arbitrum.io/stylus
+- **Stylus SDK**: https://github.com/OffchainLabs/stylus-sdk-rs
 
 ## 📄 License
 
-MIT License - see LICENSE file for details
+This project is licensed under MIT OR Apache-2.0 license. See individual `licenses/` directories for full texts.
 
-## 🏃‍♂️ Quick Command Reference
-
-```bash
-# Development
-cargo stylus check                    # Verify contract
-cargo stylus export-abi              # Generate ABI
-cargo stylus build --release         # Build optimized version
-
-# Deployment  
-cargo stylus deploy --endpoint <RPC> --private-key <KEY>
-
-# Utilities
-cargo stylus activate <CONTRACT>     # Activate deployed contract
-cargo stylus cache <CONTRACT>        # Cache for cheaper calls
-```
-
-## 🆘 Support
-
-- **Documentation**: Check this README and inline code comments
-- **Issues**: Open an issue on GitHub for bugs or feature requests
-- **Stylus Docs**: [Official Stylus Documentation](https://docs.arbitrum.io/stylus)
-- **Community**: Join the Arbitrum Discord for Stylus discussions
-
----
-
-**Built with ❤️ using Rust and Arbitrum Stylus**
