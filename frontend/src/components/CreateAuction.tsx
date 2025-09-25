@@ -38,15 +38,15 @@ export const CreateAuction = () => {
   );
 
   useEffect(() => {
-    if (account && getOwnerNFTs) {
+    if (account) {
       console.log("Account changed, loading NFTs...");
       loadUserNFTs();
     }
-  }, [account, getOwnerNFTs]);
+  }, [account]);
 
   // Also load NFTs when component mounts if account is already available
   useEffect(() => {
-    if (account && getOwnerNFTs && userNFTs.length === 0) {
+    if (account && userNFTs.length === 0) {
       console.log("Component mounted, loading NFTs...");
       loadUserNFTs();
     }
@@ -146,7 +146,9 @@ export const CreateAuction = () => {
               {nftLoading ? (
                 <div className="flex items-center justify-center py-4">
                   <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
-                  <span className="ml-2 text-sm text-muted-foreground">Loading NFTs...</span>
+                  <span className="ml-2 text-sm text-muted-foreground">
+                    Loading NFTs...
+                  </span>
                 </div>
               ) : userNFTs.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No NFTs found</p>
