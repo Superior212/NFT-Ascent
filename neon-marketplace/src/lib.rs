@@ -122,7 +122,7 @@ sol_storage! {
     }
 }
 
-const PLATFORM_FEE_BASIS_POINTS: u32 = 500; // 5% = 500 basis points
+
 const ONE_DAY: u64 = 86400; // 24 hours in seconds
 
 #[public]

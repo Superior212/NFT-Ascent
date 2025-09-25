@@ -1,33 +1,40 @@
-# Neon Multi-Collection NFT
+# Neon Simple NFT
 
-A multi-collection NFT smart contract built with Rust and Arbitrum Stylus. This contract allows users to create their own NFT collections and mint unique digital assets within those collections.
+A simple NFT smart contract built with Rust and Arbitrum Stylus. This contract provides essential NFT functionality with optimal gas efficiency and security.
+
+## 🚀 Deployed Contract
+
+**Arbitrum Sepolia Testnet:**
+- **Contract Address:** `0xd3e20ae9c803da4c82dc4bae8a3e96ca0e4a4a84`
+- **Network:** Arbitrum Sepolia
+- **Chain ID:** 421614
 
 ## Features
 
-- **Multi-Collection Support**: Create unlimited NFT collections with custom names, symbols, and metadata
 - **ERC721 Compatible**: Full compatibility with the ERC721 standard and existing NFT infrastructure
 - **Gas Efficient**: Built on Arbitrum Stylus for ultra-low gas costs and high performance
-- **Collection Management**: Comprehensive tools for managing collections and tracking ownership
+- **Secure**: Comprehensive security measures and error handling
+- **Optimized**: Contract size under 24KB for efficient deployment
 - **Marketplace Ready**: Works seamlessly with NFT marketplaces and trading platforms
 
 ## Contract Architecture
 
 ### Core Components
 
-1. **Collection Management**
-   - Create new collections with custom metadata
-   - Track collection creators and ownership
-   - Manage collection-specific token numbering
+1. **NFT Management**
+   - Single collection with custom name and symbol
+   - Mint NFTs with unique token URIs
+   - Transfer tokens with automatic balance tracking
 
 2. **Token Operations**
-   - Mint NFTs within specific collections
-   - Transfer tokens with automatic balance tracking
-   - Support for approvals and operator management
+   - Secure minting with ownership tracking
+   - Transfer with comprehensive approval system
+   - Support for operator management
 
 3. **Balance Tracking**
-   - Global balance across all collections
-   - Collection-specific balances
-   - Efficient storage and retrieval
+   - Efficient balance tracking per address
+   - Token ownership verification
+   - Optimized storage patterns
 
 ## Quick Start
 
@@ -65,72 +72,83 @@ cargo test --test nft_tests
 
 ## Usage Examples
 
-### 1. Create a Collection
+### 1. Initialize Contract (One-time setup)
 
-```rust
-// Create a new NFT collection
-let collection_id = contract.create_collection(
-    "My Art Collection".to_string(),
-    "MAC".to_string(),
-    "https://myart.com/metadata/".to_string()
-)?;
+```bash
+# Using cast (Foundry)
+cast send 0xd3e20ae9c803da4c82dc4bae8a3e96ca0e4a4a84 \
+  "initialize(string,string)" "My NFT Collection" "MNC" \
+  --private-key <YOUR_PRIVATE_KEY> \
+  --rpc-url https://sepolia-rollup.arbitrum.io/rpc
 ```
 
 ### 2. Mint an NFT
 
-```rust
-// Mint an NFT in the collection
-let token_id = contract.mint_nft(
-    collection_id,
-    "https://myart.com/metadata/1.json".to_string()
-)?;
+```solidity
+// Mint an NFT to an address with metadata URI
+uint256 tokenId = nft.mint(toAddress, "ipfs://QmYourMetadataHash");
 ```
 
-### 3. Query Collection Info
+### 3. Query Token Info
 
-```rust
-// Get collection details
-let (name, symbol, creator, base_uri, next_token_id) = contract.get_collection(collection_id)?;
+```solidity
+// Get token owner
+address owner = nft.ownerOf(tokenId);
 
-// Get user's balance in a specific collection
-let collection_balance = contract.balance_of_collection(user_address, collection_id)?;
+// Get token metadata URI
+string memory uri = nft.tokenURI(tokenId);
+
+// Get user's balance
+uint256 balance = nft.balanceOf(userAddress);
 ```
 
 ### 4. Transfer Tokens
 
-```rust
+```solidity
 // Transfer token between addresses
-contract.transfer_from(from_address, to_address, token_id)?;
+nft.transferFrom(fromAddress, toAddress, tokenId);
 ```
 
-## API Reference
+## Contract Interface
 
-### Collection Management
+### Core Functions
 
-- `create_collection(name, symbol, base_uri)` - Create a new collection
-- `get_collection(collection_id)` - Get collection information
-- `get_next_collection_id()` - Get the next available collection ID
+```solidity
+interface ISimpleNFT {
+    // Initialization - Call once after deployment
+    function initialize(string memory name, string memory symbol) external;
+
+    // Token Operations
+    function mint(address to, string memory tokenURI) external returns (uint256);
+    function ownerOf(uint256 tokenId) external view returns (address);
+    function tokenURI(uint256 tokenId) external view returns (string memory);
+    function balanceOf(address owner) external view returns (uint256);
+
+    // Collection Info
+    function name() external view returns (string memory);
+    function symbol() external view returns (string memory);
+}
+```
 
 ### Token Operations
 
-- `mint_nft(collection_id, token_uri)` - Mint a new NFT
-- `owner_of(token_id)` - Get token owner
-- `token_uri(token_id)` - Get token metadata URI
-- `token_collection(token_id)` - Get the collection ID for a token
+- `mint(to, token_uri)` - Mint a new NFT to an address
+- `ownerOf(token_id)` - Get token owner
+- `tokenURI(token_id)` - Get token metadata URI
+- `balanceOf(owner)` - Get token balance
 
-### Balance Queries
+### Collection Info
 
-- `balance_of(owner)` - Get total token balance
-- `balance_of_collection(owner, collection_id)` - Get collection-specific balance
+- `name()` - Get collection name
+- `symbol()` - Get collection symbol
 
-### ERC721 Standard
+### ERC721 Standard Functions
 
 - `approve(to, token_id)` - Approve token transfer
-- `get_approved(token_id)` - Get approved address
-- `set_approval_for_all(operator, approved)` - Set operator approval
-- `is_approved_for_all(owner, operator)` - Check operator approval
-- `transfer_from(from, to, token_id)` - Transfer token
-- `safe_transfer_from(from, to, token_id)` - Safe transfer token
+- `getApproved(token_id)` - Get approved address
+- `setApprovalForAll(operator, approved)` - Set operator approval
+- `isApprovedForAll(owner, operator)` - Check operator approval
+- `transferFrom(from, to, token_id)` - Transfer token
 
 ## Deployment
 
@@ -154,22 +172,45 @@ cargo stylus deploy \
 
 ## Contract Events
 
+```solidity
+event Transfer(address indexed from, address indexed to, uint256 indexed tokenId);
+event Approval(address indexed owner, address indexed approved, uint256 indexed tokenId);
+event ApprovalForAll(address indexed owner, address indexed operator, bool approved);
+event NFTMinted(uint256 indexed tokenId, address indexed to, string tokenURI);
+```
+
 The contract emits the following events:
 
-- `CollectionCreated(collection_id, creator, name, symbol)` - New collection created
-- `NFTMinted(token_id, collection_id, creator, token_uri)` - New NFT minted
+- `NFTMinted(token_id, to, token_uri)` - New NFT minted
 - `Transfer(from, to, token_id)` - Token transferred
 - `Approval(owner, approved, token_id)` - Token approved
 - `ApprovalForAll(owner, operator, approved)` - Operator approval set
 
 ## Integration with Marketplaces
 
-This contract is designed to work seamlessly with NFT marketplaces. The included marketplace contract (`neon-marketplace`) provides:
+This contract is designed to work seamlessly with NFT marketplaces and DeFi protocols:
 
-- Auction functionality for any ERC721 token
-- Collection information retrieval
-- Platform fee management
-- Automated settlement and fund distribution
+- **Neon Marketplace**: Our companion marketplace contract with English auctions
+- **OpenSea**: Full ERC721 compliance for listing and trading
+- **DeFi Protocols**: Use NFTs as collateral or in yield farming
+- **Cross-chain bridges**: Standard ERC721 for multi-chain deployment
+
+### Using with Neon Marketplace
+
+The NFT contract works perfectly with our deployed marketplace at `0x135b3a004e7a746c43967226a8379f95fe9b4e23`:
+
+```bash
+# Approve marketplace to transfer your NFT
+cast send 0xd3e20ae9c803da4c82dc4bae8a3e96ca0e4a4a84 \
+  "approve(address,uint256)" 0x135b3a004e7a746c43967226a8379f95fe9b4e23 <TOKEN_ID> \
+  --private-key <KEY> --rpc-url https://sepolia-rollup.arbitrum.io/rpc
+
+# Create auction on marketplace
+cast send 0x135b3a004e7a746c43967226a8379f95fe9b4e23 \
+  "createAuction(address,uint256,uint256,uint256)" \
+  0xd3e20ae9c803da4c82dc4bae8a3e96ca0e4a4a84 <TOKEN_ID> 100000000000000000 86400 \
+  --private-key <KEY> --rpc-url https://sepolia-rollup.arbitrum.io/rpc
+```
 
 ## Security Features
 
@@ -185,6 +226,34 @@ Built on Arbitrum Stylus for maximum efficiency:
 - **WASM Performance**: Rust compiled to WebAssembly for optimal execution
 - **Storage Efficiency**: Optimized data structures and packing
 - **Low Transaction Costs**: Leverages Arbitrum's L2 scaling benefits
+
+## Token URI and Metadata
+
+The contract stores individual token URIs for each NFT. These typically point to JSON metadata following the ERC721 standard:
+
+### Metadata JSON Format
+```json
+{
+  "name": "My NFT #1",
+  "description": "Description of the NFT",
+  "image": "ipfs://QmImageHashHere",
+  "attributes": [
+    {
+      "trait_type": "Color",
+      "value": "Blue"
+    },
+    {
+      "trait_type": "Rarity",
+      "value": "Common"
+    }
+  ]
+}
+```
+
+### Storage Options
+- **IPFS**: `"ipfs://QmYourMetadataHash"` (recommended for decentralization)
+- **Arweave**: `"ar://transaction_id"` (permanent storage)
+- **HTTP**: `"https://yourdomain.com/metadata/1.json"` (centralized but flexible)
 
 ## Development
 
@@ -213,9 +282,11 @@ This project is licensed under MIT OR Apache-2.0 license. See the `licenses/` di
 
 ## Links
 
+- **Contract Address**: `0xd3e20ae9c803da4c82dc4bae8a3e96ca0e4a4a84`
+- **Arbitrum Sepolia Explorer**: https://sepolia.arbiscan.io/address/0xd3e20ae9c803da4c82dc4bae8a3e96ca0e4a4a84
 - [Arbitrum Stylus Documentation](https://docs.arbitrum.io/stylus/stylus-gentle-introduction)
 - [Stylus SDK](https://github.com/OffchainLabs/stylus-sdk-rs)
-- [Arbitrum Testnet Information](https://docs.arbitrum.io/stylus/reference/testnet-information)
+- [Neon NFT Marketplace](../neon-marketplace)
 
 ## Support
 
